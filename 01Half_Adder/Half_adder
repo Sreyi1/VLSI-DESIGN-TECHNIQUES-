@@ -1,0 +1,31 @@
+# Half Adder using Verilog
+
+## Description
+
+Designed and simulated a Half Adder using Verilog HDL.
+
+## Inputs
+
+- A
+- B
+
+## Outputs
+
+- Sum
+- Carry
+
+## Files
+
+- design.v
+- tb.v
+- waveform.png
+
+## Tools
+
+- Verilog HDL
+- Xilinx Vivado
+- AMD Boolean FPGA Board
+
+## Result
+
+Simulation verified successfully.
