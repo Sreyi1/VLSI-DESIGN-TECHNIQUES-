@@ -1,0 +1,50 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 4 =====
+FULL ADDER:
+
+
+
+
+CODE
+
+module fulladder(
+  input a,
+  input b,
+
+
+===== PDF PAGE 5 =====
+ input cin,
+ output sum,
+ output carry
+ );
+ assign sum=a^b^cin;
+ assign carry=(a&b)|(b&cin)|(cin&a);
+
+endmodule
+
+Testbench:
+module fulladdder_tb();
+reg a,b,cin;
+wire sum,carry;
+fulladder uut(a,b,cin,sum,carry);
+initial begin
+a=0;b=0;cin=0;
+#10
+a=0;b=0;cin=1;
+#10
+a=0;b=1;cin=0;
+#10
+a=0;b=1;cin=1;
+#10
+a=1;b=0;cin=0;
+#10
+a=1;b=0;cin=1;
+#10
+a=1;b=1;cin=0;
+#10
+a=1;b=1;cin=1;
+#10
+$finish();
+end
+endmodule

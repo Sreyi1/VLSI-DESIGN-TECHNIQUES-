@@ -1,0 +1,74 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 29 =====
+T FLIP FLOP
+
+
+===== PDF PAGE 30 =====
+module tff (
+   input wire t,
+   input wire clk,
+   input wire reset,
+   output reg q
+);
+   always @(posedge clk or posedge reset) begin
+      if (reset)
+          q <= 0;
+      else if (t)
+          q <= ~q; // Toggle output if t = 1
+      // else retain current q
+   end
+endmodule
+
+
+module tff_tb;
+
+  // Testbench signals
+  reg t;
+  reg clk;
+  reg reset;
+  wire q;
+
+  // Instantiate the T Flip-Flop module
+  tff uut (
+      .t(t),
+      .clk(clk),
+      .reset(reset),
+      .q(q)
+  );
+
+  // Clock generation
+  initial begin
+     clk = 0;
+     forever #5 clk = ~clk; // Toggle clock every 5ns (10ns period)
+  end
+
+
+===== PDF PAGE 31 =====
+  // Stimulus
+  initial begin
+     // Initial values
+     t = 0;
+     reset = 0;
+
+    // Apply reset
+    #2 reset = 1;
+    #10 reset = 0;
+
+    // Test toggling
+    #10 t = 1; // Should toggle q on next rising edge
+    #10 t = 1; // Toggle again
+    #10 t = 0; // No toggle
+    #10 t = 1; // Toggle
+    #10 t = 1; // Toggle
+
+    // End simulation
+    #20 $finish;
+  end
+
+  // Monitor signal transitions
+  initial begin
+     $monitor("Time=%t | t=%b | clk=%b | reset=%b | q=%b", $time, t, clk, reset, q);
+  end
+
+endmodule

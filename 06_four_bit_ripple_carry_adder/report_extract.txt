@@ -1,0 +1,127 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 12 =====
+module mux_tb();
+  reg i0, i1, i2, i3;
+  reg sl0, sl1;
+  wire out;
+
+  mux uut (.i0(i0), .i1(i1), .i2(i2), .i3(i3), .sl0(sl0), .sl1(sl1), .out(out));
+
+   initial begin
+      $monitor("i0=%b i1=%b i2=%b i3=%b sl1=%b sl0=%b => out=%b", i0, i1, i2, i3, sl1,
+sl0, out);
+
+     i0 = 0; i1 = 1; i2 = 0; i3 = 1;
+
+     sl1 = 0; sl0 = 0; #10; // should select i0
+     sl1 = 0; sl0 = 1; #10; // should select i1
+     sl1 = 1; sl0 = 0; #10; // should select i2
+     sl1 = 1; sl0 = 1; #10; // should select i3
+
+    $finish;
+  end
+endmodule
+
+
+
+
+                                          4bit Full Adder
+// 1-bit Full Adder Module
+module FA(
+   input A,
+   input B,
+   input Cin,
+   output sum,
+   output cout
+);
+   assign sum = A ^ B ^ Cin;
+   assign cout = (A & B) | (B & Cin) | (A & Cin);
+endmodule
+
+// 4-bit Full Adder Module
+module Fulladder_4bit(
+
+
+===== PDF PAGE 13 =====
+     input a0,
+     input a1,
+     input a2,
+     input a3,
+     input b0,
+     input b1,
+     input b2,
+     input b3,
+     input c0,
+     output s0,
+     output s1,
+     output s2,
+     output s3,
+     output cout
+);
+     wire c1, c2, c3;
+
+  FA f1 (.A(a0), .B(b0), .Cin(c0), .sum(s0), .cout(c1));
+  FA f2 (.A(a1), .B(b1), .Cin(c1), .sum(s1), .cout(c2));
+  FA f3 (.A(a2), .B(b2), .Cin(c2), .sum(s2), .cout(c3));
+  FA f4 (.A(a3), .B(b3), .Cin(c3), .sum(s3), .cout(cout));
+endmodule
+
+TESTBENCH
+`timescale 1ns / 1ps
+
+module Fulladder_4bit_tb;
+  // Inputs
+  reg a0, a1, a2, a3;
+  reg b0, b1, b2, b3;
+  reg c0;
+
+     // Outputs
+     wire s0, s1, s2, s3;
+     wire cout;
+
+     // Instantiate the DUT (Design Under Test)
+     Fulladder_4bit dut (
+         .a0(a0), .a1(a1), .a2(a2), .a3(a3),
+         .b0(b0), .b1(b1), .b2(b2), .b3(b3),
+
+
+===== PDF PAGE 14 =====
+     .c0(c0),
+     .s0(s0), .s1(s1), .s2(s2), .s3(s3),
+     .cout(cout)
+);
+
+// Helper task to set inputs
+task set_inputs;
+   input [3:0] A, B;
+   input C;
+   begin
+      {a3, a2, a1, a0} = A;
+      {b3, b2, b1, b0} = B;
+      c0 = C;
+   end
+endtask
+
+initial begin
+   $display("Time\tA\t+\tB\t+\tCin\t=\tSum\tCout");
+
+     // Test Case 1: 5 + 3 + 0 = 8
+     set_inputs(4'd5, 4'd3, 1'b0); #10;
+     $display("%0t\t%0d\t+\t%0d\t+\t%b\t=\t%0d\t%b",
+            $time, 5, 3, c0, {s3, s2, s1, s0}, cout);
+
+     // Test Case 2: 9 + 6 + 1 = 16
+     set_inputs(4'd9, 4'd6, 1'b1); #10;
+     $display("%0t\t%0d\t+\t%0d\t+\t%b\t=\t%0d\t%b",
+            $time, 9, 6, c0, {s3, s2, s1, s0}, cout);
+
+     // Test Case 3: 15 + 15 + 0 = 30
+     set_inputs(4'd15, 4'd15, 1'b0); #10;
+     $display("%0t\t%0d\t+\t%0d\t+\t%b\t=\t%0d\t%b",
+            $time, 15, 15, c0, {s3, s2, s1, s0}, cout);
+
+     // Test Case 4: 0 + 0 + 1 = 1
+     set_inputs(4'd0, 4'd0, 1'b1); #10;
+     $display("%0t\t%0d\t+\t%0d\t+\t%b\t=\t%0d\t%b",
+            $time, 0, 0, c0, {s3,

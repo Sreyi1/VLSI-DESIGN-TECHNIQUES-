@@ -1,0 +1,536 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 43 =====
+module clk_dvd(
+   input wire clk_100MHz, // 100 MHz input clock
+   input wire rst,     // Active high reset
+   output reg clk_1hz      // Output 1 Hz clock
+);
+
+reg [25:0] count;          // 26-bit counter for division
+
+always @(posedge clk_100MHz) begin
+  if (rst) begin
+      count <= 0;
+      clk_1hz <= 0;
+  end
+  else begin
+      if (count == 26'd49000000) begin
+          clk_1hz <= ~clk_1hz; // Toggle output clock
+          count <= 0;
+      end
+      else begin
+          count <= count + 1;
+      end
+  end
+end
+
+endmodule
+
+
+
+
+                               ALU USING PMOD KEYPAD
+module keypad(
+   input clk,
+   input rst,
+   input [3:0] row,
+   output reg [3:0] col,
+   output reg [3:0] key,
+   output reg key_valid
+);
+
+
+===== PDF PAGE 44 =====
+reg [1:0] col_index;
+
+always @(posedge clk or posedge rst) begin
+  if (rst) begin
+      col_index <= 0;
+      col <= 4'b1110;
+  end else begin
+      col_index <= col_index + 1;
+      col <= ~(4'b0001 << col_index);
+  end
+end
+
+always @(posedge clk or posedge rst) begin
+  if (rst) begin
+      key <= 0;
+      key_valid <= 0;
+  end else begin
+      key_valid <= 0;
+      case (~col)
+         4'b0001: begin
+            if (!row[0]) begin key <= 4'h1; key_valid <= 1; end
+            else if (!row[1]) begin key <= 4'h4; key_valid <= 1; end
+            else if (!row[2]) begin key <= 4'h7; key_valid <= 1; end
+            else if (!row[3]) begin key <= 4'h0; key_valid <= 1; end
+         end
+         4'b0010: begin
+            if (!row[0]) begin key <= 4'h2; key_valid <= 1; end
+            else if (!row[1]) begin key <= 4'h5; key_valid <= 1; end
+            else if (!row[2]) begin key <= 4'h8; key_valid <= 1; end
+            else if (!row[3]) begin key <= 4'hF; key_valid <= 1; end
+         end
+         4'b0100: begin
+            if (!row[0]) begin key <= 4'h3; key_valid <= 1; end
+            else if (!row[1]) begin key <= 4'h6; key_valid <= 1; end
+            else if (!row[2]) begin key <= 4'h9; key_valid <= 1; end
+            else if (!row[3]) begin key <= 4'hE; key_valid <= 1; end
+         end
+         4'b1000: begin
+            if (!row[0]) begin key <= 4'hA; key_valid <= 1; end
+            else if (!row[1]) begin key <= 4'hB; key_valid <= 1; end
+
+
+===== PDF PAGE 45 =====
+          else if (!row[2]) begin key <= 4'hC; key_valid <= 1; end
+          else if (!row[3]) begin key <= 4'hD; key_valid <= 1; end
+        end
+      endcase
+    end
+  end
+endmodule
+
+module clk_divider(
+   input wire clk_100MHz,
+   input wire reset,
+   output reg clk_1kHz
+);
+   reg [16:0] count;
+
+  always @(posedge clk_100MHz or posedge reset) begin
+    if (reset) begin
+        count <= 0;
+        clk_1kHz <= 0;
+    end else if (count == 17'd49_999) begin
+        clk_1kHz <= ~clk_1kHz;
+        count <= 0;
+    end else begin
+        count <= count + 1;
+    end
+  end
+endmodule
+
+module hex_to_7seg(
+   input [3:0] hex,
+   output reg [6:0] seg
+);
+   always @(*) begin
+      case (hex)
+        4'h0: seg = 7'b1000000;
+        4'h1: seg = 7'b1111001;
+        4'h2: seg = 7'b0100100;
+        4'h3: seg = 7'b0110000;
+        4'h4: seg = 7'b0011001;
+        4'h5: seg = 7'b0010010;
+
+
+===== PDF PAGE 46 =====
+      4'h6: seg = 7'b0000010;
+      4'h7: seg = 7'b1111000;
+      4'h8: seg = 7'b0000000;
+      4'h9: seg = 7'b0010000;
+      4'hA: seg = 7'b0001000;
+      4'hB: seg = 7'b0000011;
+      4'hC: seg = 7'b1000110;
+      4'hD: seg = 7'b0100001;
+      4'hE: seg = 7'b0000110;
+      4'hF: seg = 7'b0001110;
+      default: seg = 7'b1111111;
+    endcase
+  end
+endmodule
+
+module top(
+   input clk_100MHz,
+   input rst,
+   input [3:0] row,
+   output [3:0] col,
+   output [6:0] seg,
+   output reg [3:0] an
+);
+   wire clk_1kHz;
+   wire [3:0] key;
+   wire key_valid;
+
+  clk_divider div (
+     .clk_100MHz(clk_100MHz),
+     .reset(rst),
+     .clk_1kHz(clk_1kHz)
+  );
+
+  keypad pad (
+    .clk(clk_1kHz),
+    .rst(rst),
+    .row(row),
+    .col(col),
+    .key(key),
+    .key_valid(key_valid)
+
+
+===== PDF PAGE 47 =====
+);
+
+reg [3:0] operand1 = 0;
+reg [3:0] operand2 = 0;
+reg [7:0] result = 0;
+reg [1:0] state = 0; // 0: get op1, 1: get operator, 2: get op2
+reg [3:0] operator = 0;
+
+always @(posedge clk_1kHz or posedge rst) begin
+  if (rst) begin
+      operand1 <= 0;
+      operand2 <= 0;
+      result <= 0;
+      state <= 0;
+      operator <= 0;
+  end else if (key_valid) begin
+      case (state)
+         0: if (key <= 4'd9) begin
+                operand1 <= key;
+                state <= 1;
+            end
+         1: if (key >= 4'hA && key <= 4'hD) begin
+                operator <= key;
+                state <= 2;
+            end
+         2: if (key <= 4'd9) begin
+                operand2 <= key;
+                case (operator)
+                   4'hA: result <= operand1 + key; // A = Add
+                   4'hB: result <= operand1 - key; // B = Sub
+                   4'hC: result <= operand1 * key; // C = Mul
+                   4'hD: result <= (key != 0) ? operand1 / key : 8'd99; // D = Div or error
+                   default: result <= 0;
+                endcase
+                state <= 0;
+            end
+      endcase
+  end
+end
+
+
+===== PDF PAGE 48 =====
+  // Multiplexing control for 4-digit 7-seg
+  reg [1:0] digit_select = 0;
+  always @(posedge clk_1kHz or posedge rst) begin
+     if (rst)
+         digit_select <= 0;
+     else
+         digit_select <= digit_select + 1;
+  end
+
+  reg [3:0] digit_value;
+  always @(*) begin
+    case (digit_select)
+       2'b00: digit_value = 0;        // Leading zeros
+       2'b01: digit_value = 0;        // Leading zeros
+       2'b10: digit_value = result / 10; // Tens digit
+       2'b11: digit_value = result % 10; // Ones digit
+       default: digit_value = 0;
+    endcase
+  end
+
+  hex_to_7seg decoder (
+     .hex(digit_value),
+     .seg(seg)
+  );
+
+  always @(*) begin
+    an = 4'b1111;
+    an[digit_select] = 0;
+  end
+
+endmodule
+
+
+
+
+module keypad(
+  input clk,
+  input rst,
+  input [3:0] row,
+
+
+===== PDF PAGE 49 =====
+     output reg [3:0] col,
+     output reg [3:0] key,
+     output reg key_valid
+);
+     reg [1:0] col_index;
+
+     always @(posedge clk or posedge rst) begin
+       if (rst) begin
+           col_index <= 0;
+           col <= 4'b1110;
+       end else begin
+           col_index <= col_index + 1;
+           col <= ~(4'b0001 << col_index);
+       end
+     end
+
+     always @(posedge clk or posedge rst) begin
+       if (rst) begin
+           key <= 0;
+           key_valid <= 0;
+       end else begin
+           key_valid <= 0;
+           case (~col)
+              4'b0001: begin
+                 if (!row[0]) begin key <= 4'h1; key_valid <= 1; end
+                 else if (!row[1]) begin key <= 4'h4; key_valid <= 1; end
+                 else if (!row[2]) begin key <= 4'h7; key_valid <= 1; end
+                 else if (!row[3]) begin key <= 4'h0; key_valid <= 1; end
+              end
+              4'b0010: begin
+                 if (!row[0]) begin key <= 4'h2; key_valid <= 1; end
+                 else if (!row[1]) begin key <= 4'h5; key_valid <= 1; end
+                 else if (!row[2]) begin key <= 4'h8; key_valid <= 1; end
+                 else if (!row[3]) begin key <= 4'hF; key_valid <= 1; end
+              end
+              4'b0100: begin
+                 if (!row[0]) begin key <= 4'h3; key_valid <= 1; end
+                 else if (!row[1]) begin key <= 4'h6; key_valid <= 1; end
+                 else if (!row[2]) begin key <= 4'h9; key_valid <= 1; end
+                 else if (!row[3]) begin key <= 4'hE; key_valid <= 1; end
+
+
+===== PDF PAGE 50 =====
+        end
+        4'b1000: begin
+           if (!row[0]) begin key <= 4'hA; key_valid <= 1; end
+           else if (!row[1]) begin key <= 4'hB; key_valid <= 1; end
+           else if (!row[2]) begin key <= 4'hC; key_valid <= 1; end
+           else if (!row[3]) begin key <= 4'hD; key_valid <= 1; end
+        end
+      endcase
+    end
+  end
+endmodule
+
+// ------------------- clk_divider.v -------------------
+module clk_divider(
+    input wire clk_100MHz,
+    input wire reset,
+    output reg clk_1kHz
+);
+    reg [16:0] count;
+
+  always @(posedge clk_100MHz or posedge reset) begin
+    if (reset) begin
+        count <= 0;
+        clk_1kHz <= 0;
+    end else if (count == 17'd49999) begin
+        clk_1kHz <= ~clk_1kHz;
+        count <= 0;
+    end else begin
+        count <= count + 1;
+    end
+  end
+endmodule
+
+// ------------------- hex_to_7seg.v -------------------
+module hex_to_7seg(
+    input [3:0] hex,
+    output reg [6:0] seg
+);
+    always @(*) begin
+       case (hex)
+
+
+===== PDF PAGE 51 =====
+      4'h0: seg = 7'b1000000;
+      4'h1: seg = 7'b1111001;
+      4'h2: seg = 7'b0100100;
+      4'h3: seg = 7'b0110000;
+      4'h4: seg = 7'b0011001;
+      4'h5: seg = 7'b0010010;
+      4'h6: seg = 7'b0000010;
+      4'h7: seg = 7'b1111000;
+      4'h8: seg = 7'b0000000;
+      4'h9: seg = 7'b0010000;
+      4'hA: seg = 7'b0001000;
+      4'hB: seg = 7'b0000011;
+      4'hC: seg = 7'b1000110;
+      4'hD: seg = 7'b0100001;
+      4'hE: seg = 7'b0000110;
+      4'hF: seg = 7'b0001110;
+      default: seg = 7'b1111111;
+    endcase
+  end
+endmodule
+
+// ------------------- top.v -------------------
+module top(
+    input clk_100MHz,
+    input rst,
+    input [3:0] row,
+    output [3:0] col,
+    output [6:0] seg,
+    output reg [3:0] an
+);
+    wire clk_1kHz;
+    wire [3:0] key;
+    wire key_valid;
+
+   clk_divider div (
+      .clk_100MHz(clk_100MHz),
+      .reset(rst),
+      .clk_1kHz(clk_1kHz)
+   );
+
+
+===== PDF PAGE 52 =====
+keypad pad (
+   .clk(clk_1kHz),
+   .rst(rst),
+   .row(row),
+   .col(col),
+   .key(key),
+   .key_valid(key_valid)
+);
+
+reg [3:0] operand1 = 0;
+reg [3:0] operand2 = 0;
+reg [7:0] result = 0;
+reg [1:0] state = 0;
+reg [3:0] operator = 0;
+
+always @(posedge clk_1kHz or posedge rst) begin
+  if (rst) begin
+      operand1 <= 0;
+      operand2 <= 0;
+      result <= 0;
+      state <= 0;
+      operator <= 0;
+  end else if (key_valid) begin
+      case (state)
+         0: if (key <= 4'd9) begin
+                operand1 <= key;
+                state <= 1;
+            end
+         1: if (key >= 4'hA && key <= 4'hD) begin
+                operator <= key;
+                state <= 2;
+            end
+         2: if (key <= 4'd9) begin
+                operand2 <= key;
+                case (operator)
+                   4'hA: result <= operand1 + key;
+                   4'hB: result <= operand1 - key;
+                   4'hC: result <= operand1 * key;
+                   4'hD: result <= (key != 0) ? operand1 / key : 8'd99;
+                   default: result <= 0;
+
+
+===== PDF PAGE 53 =====
+            endcase
+            state <= 0;
+          end
+      endcase
+    end
+  end
+
+  // Multiplexing control
+  reg [1:0] digit_select = 0;
+  always @(posedge clk_1kHz or posedge rst) begin
+     if (rst)
+         digit_select <= 0;
+     else
+         digit_select <= digit_select + 1;
+  end
+
+  reg [3:0] digit_value;
+  always @(*) begin
+    case (digit_select)
+       2'b00: digit_value = 0;
+       2'b01: digit_value = 0;
+       2'b10: digit_value = result / 10;
+       2'b11: digit_value = result % 10;
+    endcase
+  end
+
+  hex_to_7seg decoder (
+     .hex(digit_value),
+     .seg(seg)
+  );
+
+  always @(*) begin
+    an = 4'b1111;
+    an[digit_select] = 0;
+  end
+
+endmodule
+
+
+===== PDF PAGE 54 =====
+CLOCK DIVIDER BY 3
+module clk_divider (
+   input clkin,
+   input rset,
+   output clkout
+);
+
+  reg [1:0] cur_state, next_state;
+  parameter s1 = 2'b00;
+  parameter s2 = 2'b01;
+  parameter s3 = 2'b10;
+
+  // State register
+  always @(posedge clkin or posedge rset) begin
+     if (rset)
+         cur_state <= s2;
+     else
+         cur_state <= next_state;
+  end
+
+  // Next state logic
+  always @(*) begin
+     case (cur_state)
+       s1: next_state = s2;
+       s2: next_state = s3;
+       s3: next_state = s1;
+       default: next_state = s1;
+     endcase
+  end
+
+  // Output logic
+  assign clkout = (cur_state == s3) ? 1'b1 : 1'b0;
+
+TESTBENCH
+module tb_clk_divider;
+
+  reg clkin;
+  reg rset;
+  wire clkout;
+
+
+===== PDF PAGE 55 =====
+clk_divider uut (
+   .clkin(clkin),
+   .rset(rset),
+   .clkout(clkout)
+);
+
+// Clock generation
+initial begin
+   clkin = 0;
+   forever #5 clkin = ~clkin; // 100MHz ~ simulated with 10 time units
+end
+
+// Stimulus
+initial begin
+   $display("Starting clk_divider test...");
+   $monitor("Time = %0t | clkin = %b | rset = %b | clkout = %b",
+          $time, clkin, rset, clkout);
+
+  rset = 1; // Reset the FSM
+  #10;
+  rset = 0; // Release reset
+
+  #100;
+
+  $finish;
+end

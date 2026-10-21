@@ -1,0 +1,74 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 11 =====
+CODE
+
+module mux2_1(
+   input d0,
+   input d1,
+   input s,
+   output y
+);
+   assign y = (d0 & ~s) | (d1 & s);
+endmodule
+
+module mux(
+   input i0,
+   input i1,
+   input i2,
+   input i3,
+   input sl0,
+   input sl1,
+   output out
+);
+   wire x1, x2;
+
+  mux2_1 mux2_1_1 (.d0(i0), .d1(i1), .s(sl0), .y(x1));
+  mux2_1 mux2_1_2 (.d0(i2), .d1(i3), .s(sl0), .y(x2));
+  mux2_1 mux2_1_3 (.d0(x1), .d1(x2), .s(sl1), .y(out));
+endmodule
+
+TESTBENCH:
+
+
+===== PDF PAGE 12 =====
+module mux_tb();
+  reg i0, i1, i2, i3;
+  reg sl0, sl1;
+  wire out;
+
+  mux uut (.i0(i0), .i1(i1), .i2(i2), .i3(i3), .sl0(sl0), .sl1(sl1), .out(out));
+
+   initial begin
+      $monitor("i0=%b i1=%b i2=%b i3=%b sl1=%b sl0=%b => out=%b", i0, i1, i2, i3, sl1,
+sl0, out);
+
+     i0 = 0; i1 = 1; i2 = 0; i3 = 1;
+
+     sl1 = 0; sl0 = 0; #10; // should select i0
+     sl1 = 0; sl0 = 1; #10; // should select i1
+     sl1 = 1; sl0 = 0; #10; // should select i2
+     sl1 = 1; sl0 = 1; #10; // should select i3
+
+    $finish;
+  end
+endmodule
+
+
+
+
+                                          4bit Full Adder
+// 1-bit Full Adder Module
+module FA(
+   input A,
+   input B,
+   input Cin,
+   output sum,
+   output cout
+);
+   assign sum = A ^ B ^ Cin;
+   assign cout = (A & B) | (B & Cin) | (A & Cin);
+endmodule
+
+// 4-bit Full Adder Module
+module Fulladder_4bit(

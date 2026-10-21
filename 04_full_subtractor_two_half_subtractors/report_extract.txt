@@ -1,0 +1,56 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 9 =====
+CODE
+module half_subtractor (
+   input a, b,
+   output diff, borrow
+);
+   assign diff = a ^ b;
+   assign borrow = ~a & b;
+endmodule
+module fullsubusinghalf(
+input a,
+   input b,
+   input bin,
+   output diff,
+   output borrow
+);
+   wire d1, b1, b2;
+
+  half_subtractor hs1 (.a(a), .b(b), .diff(d1), .borrow(b1));
+  half_subtractor hs2 (.a(d1), .b(bin), .diff(diff), .borrow(b2));
+
+  assign borrow = b1 | b2;
+endmodule
+TESTBENCH
+module fullsubusinghalf_tb();
+  reg A, B, Bin;
+  wire DIFF, BORROW;
+
+
+===== PDF PAGE 10 =====
+  fullsubusinghalf uut (
+     .a(A),
+     .b(B),
+     .bin(Bin),
+     .diff(DIFF),
+     .borrow(BORROW)
+  );
+
+  initial begin
+     $monitor("A=%b B=%b Bin=%b => Diff=%b Borrow=%b", A, B, Bin, DIFF, BORROW);
+
+    A=0; B=0; Bin=0; #10;
+    A=0; B=0; Bin=1; #10;
+    A=0; B=1; Bin=0; #10;
+    A=0; B=1; Bin=1; #10;
+    A=1; B=0; Bin=0; #10;
+    A=1; B=0; Bin=1; #10;
+    A=1; B=1; Bin=0; #10;
+    A=1; B=1; Bin=1; #10;
+
+    $finish;
+  end
+endmodule
+4:1 mux using 2:1 mux:

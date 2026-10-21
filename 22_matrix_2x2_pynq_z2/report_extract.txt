@@ -1,0 +1,188 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 110 =====
+                               MATRIX 2x2 USING PYNQ Z2 BOARD
+
+Verilog code:
+
+module matrix_2x2(
+
+  //input and output ports.
+
+  //The size 32 bits which is 2*2=4 elements,each of which is 8 bits wide.
+
+  input [31:0] A,
+
+  input [31:0] B,
+
+  input clk,
+
+  output reg [31:0] Res);
+
+  //internal variables
+
+  //reg [31:0] Res;
+
+  reg [7:0] A1 [0:1][0:1];
+
+  reg [7:0] B1 [0:1][0:1];
+
+  reg [7:0] Res1 [0:1][0:1];
+
+  integer i,j,k;
+
+  always@ (posedge clk)
+
+  begin
+
+  //Initialize the matrices-convert 1 D to 3D arrays
+
+    {A1[0][0],A1[0][1],A1[1][0],A1[1][1]} = A;
+
+    {B1[0][0],B1[0][1],B1[1][0],B1[1][1]} = B;
+
+    i = 0;
+
+    j = 0;
+
+    k = 0;
+
+    {Res1[0][0],Res1[0][1],Res1[1][0],Res1[1][1]} = 32'd0; //initialize to zeros.
+
+    //Matrix multiplication
+
+    for(i=0;i < 2;i=i+1)
+
+
+===== PDF PAGE 111 =====
+        for(j=0;j < 2;j=j+1)
+
+          for(k=0;k < 2;k=k+1)
+
+             Res1[i][j] = Res1[i][j] + (A1[i][k] * B1[k][j]);
+
+    //final output assignment - 3D array to 1D array conversion.
+
+    Res = {Res1[0][0],Res1[0][1],Res1[1][0],Res1[1][1]};
+
+  end
+
+  endmodule
+
+PYTHON CODE​
+from pynq import Overlay
+
+from pynq import PL
+
+import time
+
+
+
+bit_path = 'matrix.bit' # your bitstream file
+
+overlay = Overlay(bit_path)
+
+
+
+
+# Wait for the bitstream to be loaded
+
+time.sleep(1)
+
+# Wait for the bitstream to be loaded
+
+time.sleep(1)
+
+
+
+# Confirm if it's loaded
+
+if overlay.is_loaded():
+
+  print("Bitstream successfully loaded!")
+
+else:
+
+  print(" Bitstream failed to load.")
+
+
+===== PDF PAGE 112 =====
+print(" IPs available in the overlay:")
+
+for ip in overlay.ip_dict:
+
+  print(f" - {ip}")
+
+
+
+mm_ip = overlay.matrix_multiplication_0
+
+
+
+# Write 32-bit hexadecimal values to slv_reg0 and slv_reg1
+
+mm_ip.write(0x00, 0x01020304) # A
+
+mm_ip.write(0x04, 0x05060708) # B
+
+
+
+# Optional: wait for IP to finish
+
+time.sleep(0.1)
+
+
+
+# Read result from slv_reg2
+
+result = mm_ip.read(0x08)
+
+
+
+# Print in both decimal and hex
+
+print(f" Result (decimal): {result}")
+
+print(f" Result (hex): 0x{result:08X}")
+
+
+===== PDF PAGE 113 =====
+PYNQ Z2
+
+IMAGE INVERSION
+Image inverter module
+module image_inverter(
+input wire clk,
+input wire rst_n,
+input wire valid_in,
+input wire [7:0] pixel_in,
+output reg valid_out,
+output reg [7:0] pixel_out
+);
+always @(posedge clk or negedge rst_n) begin
+if (!rst_n) begin
+pixel_out &lt;= 8&#39;d0;
+valid_out &lt;= 1&#39;b0;
+end else begin
+if (valid_in) begin
+pixel_out &lt;= 8&#39;d255 - pixel_in;
+valid_out &lt;= 1&#39;b1;
+end else begin
+valid_out &lt;= 1&#39;b0;
+end
+
+end
+end
+endmodule
+
+AXI LITE PROTOCOL IP
+
+module myip_apple_v1_0_S00_AXI #
+(
+parameter integer C_S_AXI_DATA_WIDTH = 32,
+parameter integer C_S_AXI_ADDR_WIDTH = 4
+)
+(
+input wire S_AXI_ACLK,
+input wire S_AXI_ARESETN,
+input wire [C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_AWADDR,

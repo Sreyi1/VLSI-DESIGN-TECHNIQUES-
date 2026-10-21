@@ -1,0 +1,73 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 38 =====
+    #10 $stop;
+  end
+endmodule
+
+                                 UP COUNTER
+module clk_divider(
+   input wire clk_100MHz,
+   input wire reset,
+   output reg clk_1Hz
+);
+
+  reg [25:0] count;
+
+  always @(posedge clk_100MHz or posedge reset) begin
+    if (reset) begin
+        count <= 0;
+        clk_1Hz <= 0;
+    end else begin
+        if (count == 26'd49_999_999) begin
+            clk_1Hz <= ~clk_1Hz;
+            count <= 0;
+        end else begin
+            count <= count + 1;
+        end
+    end
+  end
+
+endmodule
+
+
+module bit_counter(
+   input wire clk_1Hz,
+   input wire reset,
+   output reg [3:0] count
+);
+
+  always @(posedge clk_1Hz or posedge reset) begin
+    if (reset)
+        count <= 4'b0000;
+    else
+
+
+===== PDF PAGE 39 =====
+        count <= count + 1;
+  end
+
+endmodule
+
+
+module top_module(
+   input wire clk_100MHz,
+   input wire reset,
+   output wire [3:0] count
+);
+
+  wire clk_1Hz;
+
+  clk_divider u_clk_div (
+     .clk_100MHz(clk_100MHz),
+     .reset(reset),
+     .clk_1Hz(clk_1Hz)
+  );
+
+  bit_counter u_bit_cnt (
+     .clk_1Hz(clk_1Hz),
+     .reset(reset),
+     .count(count)
+  );
+
+endmodule

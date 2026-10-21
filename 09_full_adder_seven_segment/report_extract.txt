@@ -1,0 +1,97 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 19 =====
+FULL ADDER USING SEVEN SEGMENT
+//Top Module
+module adder_display(
+   input [3:0] A, // 4-bit input A
+   input [3:0] B, // 4-bit input B
+   input     Cin, // Carry-in
+   output [6:0] display, // 7-segment display output
+   output [7:0] an, // Anode control (only 1 digit active)
+   output     dp // Decimal point
+);
+
+  wire [4:0] sum; // 5-bit result to hold sum and carry-out
+
+  // Perform addition
+  assign sum = A + B + Cin;
+
+  // Instantiate seven-segment display encoder
+  sevseg1 ssd (
+      .digit(sum[3:0]), // Only lower 4 bits sent to display
+      .display(display),
+      .an(an),
+      .dp(dp)
+  );
+
+endmodule
+
+// Seven Segment Module
+module sevseg1(
+   input [3:0] digit,
+   output reg [6:0] display,
+   output wire [7:0] an,
+   output wire dp
+);
+
+  // Segment values for common anode
+  parameter zero = 7'b0000001;
+  parameter one = 7'b1001111;
+
+
+===== PDF PAGE 20 =====
+parameter two = 7'b0010010;
+parameter three = 7'b0000110;
+parameter four = 7'b1001100;
+parameter five = 7'b0100100;
+parameter six = 7'b0100000;
+parameter seven = 7'b0001111;
+parameter eight = 7'b0000000;
+parameter nine = 7'b0000100;
+parameter A = 7'b0001000;
+parameter B = 7'b0000000;
+parameter C = 7'b0110001;
+parameter D = 7'b0000001;
+parameter E = 7'b0110000;
+parameter F = 7'b0111000;
+
+assign an = 8'b11111110;
+assign dp = 1;
+
+always @ (digit) begin
+  case(digit)
+    4'd0: display = zero;
+    4'd1: display = one;
+    4'd2: display = two;
+    4'd3: display = three;
+    4'd4: display = four;
+    4'd5: display = five;
+    4'd6: display = six;
+    4'd7: display = seven;
+    4'd8: display = eight;
+    4'd9: display = nine;
+    4'd10: display = A;
+    4'd11: display = B;
+    4'd12: display = C;
+    4'd13: display = D;
+    4'd14: display = E;
+    4'd15: display = F;
+    default: display = 7'b1111111; // Blank
+  endcase
+end
+
+
+===== PDF PAGE 21 =====
+endmodule
+
+
+
+
+                            ALU USING SEVEN SEGMENT
+// Top Module: ALU with Display
+module alu_display (
+    input [3:0] A,     // 4-bit input A
+    input [3:0] B,     // 4-bit input B
+    input [1:0] sel,   // 2-bit selector for operation
+    output [6:0] display, // 7-segment display output

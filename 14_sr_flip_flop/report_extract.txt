@@ -1,0 +1,59 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 35 =====
+SR FLIP FLOP
+
+
+===== PDF PAGE 36 =====
+module srff (
+   input wire s,
+   input wire r,
+   input wire clk,
+   input wire reset,
+   output reg q
+);
+   always @(posedge clk or posedge reset) begin
+      if (reset)
+          q <= 0;
+
+
+===== PDF PAGE 37 =====
+    else begin
+       case ({s, r})
+         2'b00: q <= q; // No change
+         2'b01: q <= 0; // Reset
+         2'b10: q <= 1; // Set
+         2'b11: q <= 1'bx; // Invalid (can model as unknown)
+       endcase
+    end
+  end
+endmodule
+module srff_tb;
+
+  reg s, r;
+  reg clk, reset;
+  wire q;
+
+  srff uut (
+     .s(s),
+     .r(r),
+     .clk(clk),
+     .reset(reset),
+     .q(q)
+  );
+
+  initial begin
+     clk = 0;
+     forever #5 clk = ~clk;
+  end
+
+  initial begin
+     // Initialize
+     s = 0; r = 0; reset = 1;
+     #10 reset = 0;
+
+    // Test cases
+    #10 s = 0; r = 0; // No change
+    #10 s = 1; r = 0; // Set
+    #10 s = 0; r = 1; // Reset
+    #10 s = 1; r = 1; // Invalid

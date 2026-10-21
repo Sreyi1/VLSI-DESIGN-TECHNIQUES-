@@ -1,0 +1,82 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 24 =====
+endmodule
+
+
+
+
+D FLIP FLOP
+
+
+
+
+module dff (
+  input wire d,
+  input wire clk,
+
+
+===== PDF PAGE 25 =====
+     input wire reset,
+     output reg q
+);
+  always @(posedge clk or posedge reset) begin
+    if (reset)
+        q <= 0;
+    else
+        q <= d;
+  end
+endmodule
+
+module dff_tb;
+
+     // Testbench signals
+     reg d;
+     reg clk;
+     reg reset;
+     wire q;
+
+     // Instantiate the D Flip-Flop module
+     dff uut (
+         .d(d),
+         .clk(clk),
+         .reset(reset),
+         .q(q)
+     );
+
+     // Clock generation
+     initial begin
+        clk = 0;
+        forever #5 clk = ~clk; // 10ns period
+     end
+
+     // Stimulus process
+     initial begin
+        // Initialize signals
+        d = 0;
+        reset = 0;
+
+       // Apply asynchronous reset
+
+
+===== PDF PAGE 26 =====
+    #2 reset = 1;
+    #10 reset = 0;
+
+    // Test input changes
+    #10 d = 1;
+    #10 d = 0;
+    #10 d = 1;
+    #10 d = 1;
+    #10 d = 0;
+
+    // End simulation
+    #20 $finish;
+  end
+
+  // Monitor signal values
+  initial begin
+     $monitor("Time=%t | d=%b | clk=%b | reset=%b | q=%b", $time, d, clk, reset, q);
+  end
+
+endmodule

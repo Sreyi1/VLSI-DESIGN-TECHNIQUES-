@@ -1,0 +1,769 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 94 =====
+                                          ALU-KEYPAD USING OLED
+
+
+
+
+module oled_calc_superbold_top(
+     input clk,
+     input rst,
+     input [3:0] row,
+     output [3:0] col,
+     output sclk,
+     output mosi,
+     output cs,
+     output dc,
+     output res_n,
+     output vccen,
+     output pmoden
+);
+     //---- Keypad wires
+     wire [3:0] key;
+     wire key_valid;
+     wire clk_1kHz;
+
+
+     //---- ALU FSM
+     reg signed [8:0] result = 0;
+     reg [3:0] operand1 = 0, operand2 = 0;
+     reg [1:0] state = 0;
+     reg [3:0] operator = 0;
+     reg calc_done = 0;
+
+
+     //---- Clock divider for keypad debounce
+
+
+===== PDF PAGE 95 =====
+clk_divider clkdiv (.clk_100MHz(clk), .reset(rst), .clk_1kHz(clk_1kHz));
+
+
+keypad keypad_inst (
+     .clk(clk_1kHz),
+     .rst(rst),
+     .row(row),
+     .col(col),
+     .key(key),
+     .key_valid(key_valid)
+);
+
+
+//--- ALU FSM
+always @(posedge clk_1kHz or posedge rst) begin
+     if (rst) begin
+        operand1 <= 0;
+        operand2 <= 0;
+        result <= 0;
+        state <= 0;
+        operator <= 0;
+        calc_done <= 0;
+     end else if (key_valid) begin
+        case (state)
+           0: if (key <= 4'd9) begin
+                  operand1 <= key;
+                  state <= 1; calc_done <= 0;
+              end
+           1: if (key >= 4'hA && key <= 4'hD) begin
+                  operator <= key;
+                  state <= 2;
+              end
+           2: if (key <= 4'd9) begin
+                  operand2 <= key;
+                  case (operator)
+                      4'hA: result <= operand1 + key;
+                      4'hB: result <= operand1 - key;
+                      4'hC: result <= operand1 * key;
+                      4'hD: result <= (key != 0) ? operand1 / key : 9'd99;
+                      default: result <= 0;
+                  endcase
+                  calc_done <= 1;
+                  state <= 0;
+              end
+        endcase
+     end
+end
+
+
+===== PDF PAGE 96 =====
+//--- Split result into sign and BCD digits
+reg is_negative; reg [7:0] abs_result;
+reg [3:0] res_hund, res_tens, res_ones;
+always @(*) begin
+     is_negative = (result < 0);
+     abs_result = is_negative ? -result[7:0] : result[7:0];
+     res_hund = abs_result / 100;
+     res_tens = (abs_result / 10) % 10;
+     res_ones = abs_result % 10;
+end
+
+
+// -------------- OLED SECTION (12x16 font) --------------
+localparam DIGIT_W = 14; // 12 px font + 2 px space
+localparam DIGIT_H = 16;
+localparam DIGITS = 4; // sign, h, t, o
+localparam COL_START = 20; // Centered for 96px with 4*14=56px
+localparam ROW_START = 24;
+
+
+reg [4:0] draw_state = 0;
+reg [15:0] pixel_cnt = 0;
+reg [7:0] draw_spi_data = 0;
+reg draw_spi_start = 0;
+reg draw_dc = 0;
+reg drawing = 0;
+reg done = 0;
+reg [5:0] row_oled = 0, col_oled = 0;
+reg [3:0] char_idx = 0, char_col = 0;
+reg [1:0] digit_sel = 0;
+wire [11:0] font_bits;
+
+
+wire sclk_int, mosi_int, cs_int, dc_init, res_n_init;
+wire spi_done;
+wire [7:0] spi_data;
+wire spi_start;
+wire init_done;
+
+
+ssd1331_init oled_init (
+     .clk(clk), .rst(rst),
+     .spi_data(spi_data), .spi_start(spi_start), .spi_done(spi_done),
+     .dc(dc_init), .res_n(res_n_init), .init_done(init_done)
+);
+
+
+spi_master spi (
+
+
+===== PDF PAGE 97 =====
+       .clk(clk), .rst(rst),
+       .data_in(drawing ? draw_spi_data : spi_data),
+       .start(drawing ? draw_spi_start : spi_start),
+       .sclk(sclk_int), .mosi(mosi_int), .cs(cs_int), .done(spi_done)
+  );
+
+
+  font_rom_superbold font(
+       .char_idx(char_idx),
+       .row(row_oled[3:0]),
+       .bits(font_bits)
+  );
+
+
+  reg prev_calc_done = 0;
+  always @(posedge clk or posedge rst) begin
+       if (rst) begin
+          draw_state <= 0; draw_spi_data <= 0; draw_spi_start <= 0;
+          draw_dc <= 0; drawing <= 0; done <= 0; pixel_cnt <= 0;
+          row_oled <= 0; col_oled <= 0; digit_sel <= 0; prev_calc_done <= 0;
+       end else begin
+          prev_calc_done <= calc_done;
+          if (calc_done && !prev_calc_done) begin
+             done <= 0; draw_state <= 0; pixel_cnt <= 0;
+             row_oled <= 0; col_oled <= 0; digit_sel <= 0;
+          end
+          if (init_done && (!done)) begin
+             drawing <= 1;
+             case(draw_state)
+                // 1. Fill screen black
+                0: begin draw_spi_data <= 8'h15; draw_spi_start <= 1; draw_dc <= 0; draw_state <= 1; end
+                1: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= 8'd0; draw_spi_start <= 1;
+draw_state <= 2; end end
+                2: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= 8'd95; draw_spi_start <= 1;
+draw_state <= 3; end end
+                3: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= 8'h75; draw_spi_start <= 1;
+draw_state <= 4; end end
+                4: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= 8'd0; draw_spi_start <= 1;
+draw_state <= 5; end end
+                5: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= 8'd63; draw_spi_start <= 1;
+draw_state <= 6; end end
+                6: begin draw_spi_start <= 0; if (spi_done) begin draw_dc <= 1; pixel_cnt <= 0; draw_state <= 7; end end
+                7: begin
+                   if(pixel_cnt < 96*64) begin
+                        draw_spi_data <= 8'h00; draw_spi_start <= 1; draw_state <= 8;
+                   end else begin
+                        draw_state <= 20;
+
+
+===== PDF PAGE 98 =====
+              end
+            end
+            8: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= 8'h00; draw_spi_start <= 1;
+draw_state <= 9; end end
+            9: begin draw_spi_start <= 0; if (spi_done) begin pixel_cnt <= pixel_cnt + 1; draw_state <= 7; end end
+
+
+            // 2. Draw super-bold digits
+            20: begin draw_spi_data <= 8'h15; draw_spi_start <= 1; draw_dc <= 0; draw_state <= 21; end
+            21: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= COL_START; draw_spi_start <= 1;
+draw_state <= 22; end end
+            22: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= COL_START+DIGIT_W*DIGITS-1;
+draw_spi_start <= 1; draw_state <= 23; end end
+            23: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= 8'h75; draw_spi_start <= 1;
+draw_state <= 24; end end
+            24: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= ROW_START; draw_spi_start <= 1;
+draw_state <= 25; end end
+            25: begin draw_spi_start <= 0; if (spi_done) begin draw_spi_data <= ROW_START+DIGIT_H-1;
+draw_spi_start <= 1; draw_state <= 26; end end
+            26: begin draw_spi_start <= 0; if (spi_done) begin draw_dc <= 1; row_oled <= 0; col_oled <= 0; digit_sel
+<= 0; draw_state <= 27; end end
+            27: begin // Each pixel in 4*14x16 region
+              if(row_oled < DIGIT_H) begin
+                  if(col_oled < DIGIT_W*DIGITS) begin
+                    digit_sel = col_oled / DIGIT_W;
+                    char_col = col_oled % DIGIT_W;
+                    case(digit_sel)
+                        2'd0: char_idx = is_negative ? 4'd10 : res_hund;
+                        2'd1: char_idx = res_hund;
+                        2'd2: char_idx = res_tens;
+                        2'd3: char_idx = res_ones;
+                        default: char_idx = 4'd10;
+                    endcase
+                    if (char_col < 12 && font_bits[11-char_col])
+                        draw_spi_data <= 8'hFF;
+                    else
+                        draw_spi_data <= 8'h00;
+                    draw_spi_start <= 1;
+                    draw_state <= 28;
+                  end else begin
+                    col_oled <= 0;
+                    row_oled <= row_oled + 1;
+                  end
+              end else begin
+                  draw_state <= 99;
+              end
+
+
+===== PDF PAGE 99 =====
+                 end
+                 28: begin draw_spi_start <= 0; if (spi_done) begin
+                        if (draw_spi_data == 8'hFF)
+                          draw_spi_data <= 8'hFF;
+                        else
+                          draw_spi_data <= 8'h00;
+                        draw_spi_start <= 1;
+                        draw_state <= 29;
+                 end end
+                 29: begin draw_spi_start <= 0; if (spi_done) begin col_oled <= col_oled + 1; draw_state <= 27; end end
+                 99: begin done <= 1; drawing <= 0; end
+                 default: draw_state <= 0;
+             endcase
+           end
+       end
+     end
+
+
+     assign sclk = sclk_int;
+     assign mosi = mosi_int;
+     assign cs     = cs_int;
+     assign dc     = drawing ? draw_dc : dc_init;
+     assign res_n = res_n_init;
+     assign vccen = 1'b1;
+     assign pmoden = 1'b1;
+endmodule
+
+
+// ------------- FONT: 12x16 super-bold digits & minus -------------
+module font_rom_superbold(
+     input [3:0] char_idx, // 0-9: digits, 10: '-'
+     input [3:0] row,
+     output reg [11:0] bits
+);
+     always @(*) begin
+       case (char_idx)
+           0: case(row)
+             0: bits = 12'b001111111100;
+             1: bits = 12'b011111111110;
+             2: bits = 12'b111100001111;
+             3: bits = 12'b111000000111;
+             4: bits = 12'b111000000111;
+             5: bits = 12'b111000000111;
+             6: bits = 12'b111000000111;
+             7: bits = 12'b111000000111;
+             8: bits = 12'b111000000111;
+             9: bits = 12'b111000000111;
+
+
+===== PDF PAGE 100 =====
+  10: bits = 12'b111000000111;
+  11: bits = 12'b111000000111;
+  12: bits = 12'b111100001111;
+  13: bits = 12'b011111111110;
+  14: bits = 12'b001111111100;
+  15: bits = 12'b000000000000;
+endcase
+1: case(row)
+  0: bits = 12'b000011110000;
+  1: bits = 12'b000111110000;
+  2: bits = 12'b001111110000;
+  3: bits = 12'b011111110000;
+  4: bits = 12'b111111110000;
+  5: bits = 12'b000111110000;
+  6: bits = 12'b000111110000;
+  7: bits = 12'b000111110000;
+  8: bits = 12'b000111110000;
+  9: bits = 12'b000111110000;
+  10: bits = 12'b000111110000;
+  11: bits = 12'b000111110000;
+  12: bits = 12'b000111110000;
+  13: bits = 12'b111111111111;
+  14: bits = 12'b111111111111;
+  15: bits = 12'b000000000000;
+endcase
+2: case(row)
+  0: bits = 12'b001111111100;
+  1: bits = 12'b011111111110;
+  2: bits = 12'b111100001111;
+  3: bits = 12'b111000000111;
+  4: bits = 12'b000000000111;
+  5: bits = 12'b000000001111;
+  6: bits = 12'b000000011110;
+  7: bits = 12'b000000111100;
+  8: bits = 12'b000001111000;
+  9: bits = 12'b000011110000;
+  10: bits = 12'b000111100000;
+  11: bits = 12'b001111000000;
+  12: bits = 12'b111111111111;
+  13: bits = 12'b111111111111;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+3: case(row)
+  0: bits = 12'b001111111100;
+
+
+===== PDF PAGE 101 =====
+  1: bits = 12'b011111111110;
+  2: bits = 12'b111100001111;
+  3: bits = 12'b111000000111;
+  4: bits = 12'b000000000111;
+  5: bits = 12'b000000001111;
+  6: bits = 12'b000111111100;
+  7: bits = 12'b000111111100;
+  8: bits = 12'b000000001111;
+  9: bits = 12'b000000000111;
+  10: bits = 12'b111000000111;
+  11: bits = 12'b111100001111;
+  12: bits = 12'b011111111110;
+  13: bits = 12'b001111111100;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+4: case(row)
+  0: bits = 12'b000000111100;
+  1: bits = 12'b000001111100;
+  2: bits = 12'b000011111100;
+  3: bits = 12'b000111111100;
+  4: bits = 12'b001111111100;
+  5: bits = 12'b011110111100;
+  6: bits = 12'b111100111100;
+  7: bits = 12'b111000111100;
+  8: bits = 12'b111111111111;
+  9: bits = 12'b111111111111;
+  10: bits = 12'b000000111100;
+  11: bits = 12'b000000111100;
+  12: bits = 12'b000000111100;
+  13: bits = 12'b000000111100;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+5: case(row)
+  0: bits = 12'b111111111111;
+  1: bits = 12'b111111111111;
+  2: bits = 12'b111000000000;
+  3: bits = 12'b111000000000;
+  4: bits = 12'b111000000000;
+  5: bits = 12'b111111111100;
+  6: bits = 12'b111111111110;
+  7: bits = 12'b000000001111;
+  8: bits = 12'b000000000111;
+  9: bits = 12'b000000000111;
+
+
+===== PDF PAGE 102 =====
+  10: bits = 12'b000000000111;
+  11: bits = 12'b000000001111;
+  12: bits = 12'b011111111110;
+  13: bits = 12'b001111111100;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+6: case(row)
+  0: bits = 12'b001111111100;
+  1: bits = 12'b011111111110;
+  2: bits = 12'b111100001111;
+  3: bits = 12'b111000000111;
+  4: bits = 12'b111000000000;
+  5: bits = 12'b111111111100;
+  6: bits = 12'b111111111110;
+  7: bits = 12'b111100001111;
+  8: bits = 12'b111000000111;
+  9: bits = 12'b111000000111;
+  10: bits = 12'b111100001111;
+  11: bits = 12'b011111111110;
+  12: bits = 12'b001111111100;
+  13: bits = 12'b000000000000;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+7: case(row)
+  0: bits = 12'b111111111111;
+  1: bits = 12'b111111111111;
+  2: bits = 12'b000000011111;
+  3: bits = 12'b000000111110;
+  4: bits = 12'b000001111100;
+  5: bits = 12'b000011111000;
+  6: bits = 12'b000111110000;
+  7: bits = 12'b001111100000;
+  8: bits = 12'b001111100000;
+  9: bits = 12'b001111100000;
+  10: bits = 12'b001111100000;
+  11: bits = 12'b001111100000;
+  12: bits = 12'b001111100000;
+  13: bits = 12'b000000000000;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+8: case(row)
+  0: bits = 12'b001111111100;
+
+
+===== PDF PAGE 103 =====
+  1: bits = 12'b011111111110;
+  2: bits = 12'b111100001111;
+  3: bits = 12'b111000000111;
+  4: bits = 12'b111000000111;
+  5: bits = 12'b111100001111;
+  6: bits = 12'b011111111110;
+  7: bits = 12'b111100001111;
+  8: bits = 12'b111000000111;
+  9: bits = 12'b111000000111;
+  10: bits = 12'b111100001111;
+  11: bits = 12'b011111111110;
+  12: bits = 12'b001111111100;
+  13: bits = 12'b000000000000;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+9: case(row)
+  0: bits = 12'b001111111100;
+  1: bits = 12'b011111111110;
+  2: bits = 12'b111100001111;
+  3: bits = 12'b111000000111;
+  4: bits = 12'b111000000111;
+  5: bits = 12'b111100001111;
+  6: bits = 12'b011111111111;
+  7: bits = 12'b001111111111;
+  8: bits = 12'b000000000111;
+  9: bits = 12'b111000000111;
+  10: bits = 12'b111100001111;
+  11: bits = 12'b011111111110;
+  12: bits = 12'b001111111100;
+  13: bits = 12'b000000000000;
+  14: bits = 12'b000000000000;
+  15: bits = 12'b000000000000;
+endcase
+10: case(row)
+  0: bits = 12'b000000000000;
+  1: bits = 12'b000000000000;
+  2: bits = 12'b000000000000;
+  3: bits = 12'b000000000000;
+  4: bits = 12'b000000000000;
+  5: bits = 12'b000000000000;
+  6: bits = 12'b111111111111;
+  7: bits = 12'b111111111111;
+  8: bits = 12'b000000000000;
+  9: bits = 12'b000000000000;
+
+
+===== PDF PAGE 104 =====
+             10: bits = 12'b000000000000;
+             11: bits = 12'b000000000000;
+             12: bits = 12'b000000000000;
+             13: bits = 12'b000000000000;
+             14: bits = 12'b000000000000;
+             15: bits = 12'b000000000000;
+           endcase
+           default: bits = 12'b0;
+       endcase
+     end
+endmodule
+
+
+// ------------- SPI MASTER -------------
+module spi_master(
+     input clk,
+     input rst,
+     input [7:0] data_in,
+     input start,
+     output reg sclk,
+     output reg mosi,
+     output reg cs,
+     output reg done
+);
+     reg [3:0] bit_cnt;
+     reg [7:0] shift_reg;
+     reg [1:0] state;
+     localparam IDLE=0, LOAD=1, TRANSFER=2, FINISH=3;
+
+
+     always @(posedge clk or posedge rst) begin
+       if (rst) begin
+           state <= IDLE;
+           sclk <= 0;
+           mosi <= 0;
+           cs <= 1;
+           done <= 0;
+           bit_cnt <= 0;
+           shift_reg <= 0;
+       end else begin
+           case(state)
+             IDLE: begin
+                  sclk <= 0; cs <= 1; done <= 0;
+                  if (start) begin
+                    cs <= 0;
+                    shift_reg <= data_in;
+                    bit_cnt <= 4'd7;
+
+
+===== PDF PAGE 105 =====
+                   state <= LOAD;
+                end
+             end
+             LOAD: begin
+                mosi <= shift_reg[7];
+                state <= TRANSFER;
+             end
+             TRANSFER: begin
+                sclk <= 1;
+                state <= FINISH;
+             end
+             FINISH: begin
+                sclk <= 0;
+                shift_reg <= {shift_reg[6:0],1'b0};
+                if (bit_cnt == 0) begin
+                   cs <= 1; done <= 1; state <= IDLE;
+                end else begin
+                   bit_cnt <= bit_cnt - 1;
+                   state <= LOAD;
+                end
+             end
+           endcase
+       end
+     end
+endmodule
+
+
+// ------------- SSD1331 OLED INIT -------------
+module ssd1331_init (
+     input wire clk,
+     input wire rst,
+     output reg [7:0] spi_data,
+     output reg spi_start,
+     input wire spi_done,
+     output reg dc,
+     output reg res_n,
+     output reg init_done
+);
+     parameter S_IDLE        = 3'd0;
+     parameter S_RESET         = 3'd1;
+     parameter S_WAIT        = 3'd2;
+     parameter S_SEND_CMD = 3'd3;
+     parameter S_WAIT_SPI = 3'd4;
+     parameter S_DONE         = 3'd5;
+
+
+     reg [2:0] state;
+
+
+===== PDF PAGE 106 =====
+parameter NUM_CMDS = 37;
+reg [7:0] init_cmds [0:NUM_CMDS-1];
+reg [5:0] cmd_idx;
+reg [19:0] rst_cnt;
+parameter RST_HOLD = 20'd200_000;
+
+
+initial begin
+  init_cmds[0] = 8'hAE;
+  init_cmds[1] = 8'hA0;
+  init_cmds[2] = 8'h72;
+  init_cmds[3] = 8'hA1;
+  init_cmds[4] = 8'h00;
+  init_cmds[5] = 8'hA2;
+  init_cmds[6] = 8'h00;
+  init_cmds[7] = 8'hA4;
+  init_cmds[8] = 8'hA8;
+  init_cmds[9] = 8'h3F;
+  init_cmds[10] = 8'hAD;
+  init_cmds[11] = 8'h8E;
+  init_cmds[12] = 8'hB0;
+  init_cmds[13] = 8'h0B;
+  init_cmds[14] = 8'hB1;
+  init_cmds[15] = 8'h31;
+  init_cmds[16] = 8'hB3;
+  init_cmds[17] = 8'hF0;
+  init_cmds[18] = 8'h8A;
+  init_cmds[19] = 8'h64;
+  init_cmds[20] = 8'h8B;
+  init_cmds[21] = 8'h78;
+  init_cmds[22] = 8'h8C;
+  init_cmds[23] = 8'h64;
+  init_cmds[24] = 8'hBB;
+  init_cmds[25] = 8'h3A;
+  init_cmds[26] = 8'hBE;
+  init_cmds[27] = 8'h3E;
+  init_cmds[28] = 8'h87;
+  init_cmds[29] = 8'h06;
+  init_cmds[30] = 8'h81;
+  init_cmds[31] = 8'h91;
+  init_cmds[32] = 8'h82;
+  init_cmds[33] = 8'h50;
+  init_cmds[34] = 8'h83;
+  init_cmds[35] = 8'h7D;
+  init_cmds[36] = 8'hAF;
+end
+
+
+===== PDF PAGE 107 =====
+always @(posedge clk or posedge rst) begin
+  if (rst) begin
+    state      <= S_RESET;
+    cmd_idx <= 0;
+    spi_start <= 0;
+    spi_data <= 0;
+    dc         <= 0;
+    res_n       <= 0;
+    init_done <= 0;
+    rst_cnt <= 0;
+  end else begin
+    case (state)
+         S_RESET: begin
+            res_n <= 0;
+            rst_cnt <= rst_cnt + 1;
+            if (rst_cnt > RST_HOLD) begin
+               res_n <= 1;
+               rst_cnt <= 0;
+               state <= S_WAIT;
+            end
+         end
+         S_WAIT: begin
+            rst_cnt <= rst_cnt + 1;
+            if (rst_cnt > RST_HOLD) begin
+               rst_cnt <= 0;
+               state <= S_SEND_CMD;
+            end
+         end
+         S_SEND_CMD: begin
+            if (cmd_idx < NUM_CMDS) begin
+               spi_data <= init_cmds[cmd_idx];
+               spi_start <= 1;
+               dc       <= 0;
+               state    <= S_WAIT_SPI;
+            end else begin
+               state    <= S_DONE;
+               init_done <= 1;
+            end
+         end
+         S_WAIT_SPI: begin
+            spi_start <= 0;
+            if (spi_done) begin
+               cmd_idx <= cmd_idx + 1;
+               state <= S_SEND_CMD;
+
+
+===== PDF PAGE 108 =====
+                  end
+             end
+             S_DONE: begin end
+             default: state <= S_IDLE;
+           endcase
+       end
+     end
+endmodule
+
+
+// ------------- KEYPAD MODULE -------------
+module keypad(
+     input clk,
+     input rst,
+     input [3:0] row,
+     output reg [3:0] col,
+     output reg [3:0] key,
+     output reg key_valid
+);
+     reg [1:0] col_index;
+
+
+     always @(posedge clk or posedge rst) begin
+       if (rst) begin
+           col_index <= 0;
+           col <= 4'b1110;
+       end else begin
+           col_index <= col_index + 1;
+           col <= ~(4'b0001 << col_index);
+       end
+     end
+
+
+     always @(posedge clk or posedge rst) begin
+       if (rst) begin
+           key <= 0;
+           key_valid <= 0;
+       end else begin
+           key_valid <= 0;
+           case (~col)
+             4'b0001: begin
+                  if (!row[0]) begin key <= 4'h1; key_valid <= 1; end
+                  else if (!row[1]) begin key <= 4'h4; key_valid <= 1; end
+                  else if (!row[2]) begin key <= 4'h7; key_valid <= 1; end
+                  else if (!row[3]) begin key <= 4'h0; key_valid <= 1; end
+             end
+             4'b0010: begin
+                  if (!row[0]) begin key <= 4'h2; key_valid <= 1; end
+
+
+===== PDF PAGE 109 =====
+               else if (!row[1]) begin key <= 4'h5; key_valid <= 1; end
+               else if (!row[2]) begin key <= 4'h8; key_valid <= 1; end
+               else if (!row[3]) begin key <= 4'hF; key_valid <= 1; end
+             end
+             4'b0100: begin
+               if (!row[0]) begin key <= 4'h3; key_valid <= 1; end
+               else if (!row[1]) begin key <= 4'h6; key_valid <= 1; end
+               else if (!row[2]) begin key <= 4'h9; key_valid <= 1; end
+               else if (!row[3]) begin key <= 4'hE; key_valid <= 1; end
+             end
+             4'b1000: begin
+               if (!row[0]) begin key <= 4'hA; key_valid <= 1; end
+               else if (!row[1]) begin key <= 4'hB; key_valid <= 1; end
+               else if (!row[2]) begin key <= 4'hC; key_valid <= 1; end
+               else if (!row[3]) begin key <= 4'hD; key_valid <= 1; end
+             end
+           endcase
+       end
+     end
+endmodule
+
+
+// ------------- CLOCK DIVIDER -------------
+module clk_divider(
+     input wire clk_100MHz,
+     input wire reset,
+     output reg clk_1kHz
+);
+     reg [16:0] count;
+     always @(posedge clk_100MHz or posedge reset) begin
+       if (reset) begin
+           count <= 0;
+           clk_1kHz <= 0;
+       end else if (count == 17'd49_999) begin
+           clk_1kHz <= ~clk_1kHz;
+           count <= 0;
+       end else begin
+           count <= count + 1;
+       end
+     end
+endmodule

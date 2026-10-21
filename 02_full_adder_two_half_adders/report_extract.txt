@@ -1,0 +1,65 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 6 =====
+FULL ADDER USING 2 HALF ADDER
+
+
+
+
+CODE:
+module half_adder (
+   input a, b,
+   output sum, carry
+);
+   assign sum = a ^ b;
+   assign carry = a & b;
+endmodule
+
+// Full Adder using two Half Adders
+module fausingha(
+   input A,
+   input B,
+   input Cin,
+   output sum,
+   output cout
+);
+   wire sum1, cout1, cout2;
+
+  half_adder half_adder1 (.a(A), .b(B), .sum(sum1), .carry(cout1));
+  half_adder half_adder2 (.a(sum1), .b(Cin), .sum(sum), .carry(cout2));
+  assign cout = cout1 | cout2;
+
+endmodule
+
+
+
+
+TESTBENCH:
+
+
+===== PDF PAGE 7 =====
+module fausingva_tb();
+  reg A, B, Cin;
+  wire sum, cout;
+
+  fausingha uut (.A(A), .B(B), .Cin(Cin), .sum(sum), .cout(cout));
+
+  initial begin
+     $monitor("A=%b B=%b Cin=%b -> Sum=%b Cout=%b", A, B, Cin, sum, cout);
+
+    A=0; B=0; Cin=0; #10;
+    A=0; B=0; Cin=1; #10;
+    A=0; B=1; Cin=0; #10;
+    A=0; B=1; Cin=1; #10;
+    A=1; B=0; Cin=0; #10;
+    A=1; B=0; Cin=1; #10;
+    A=1; B=1; Cin=0; #10;
+    A=1; B=1; Cin=1; #10;
+
+    $finish;
+  end
+endmodule
+
+                                             DAY 02
+
+                                    FULL SUBTRACTOR

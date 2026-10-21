@@ -1,0 +1,71 @@
+Source text extracted from the uploaded report. This is a reference transcription; OCR/layout may be imperfect. Use the cleaned `src/` files for the runnable educational implementation.
+
+===== PDF PAGE 27 =====
+                                   D FLIP FLOP 4 BITS
+// dff_4bit.v
+module dff_4bit (
+   input wire [3:0] d,       // 4-bit data input
+   input wire clk,         // Clock input
+   input wire reset,         // Asynchronous reset
+   output reg [3:0] q         // 4-bit data output
+);
+   always @(posedge clk or posedge reset) begin
+       if (reset)
+           q <= 4'b0000; // Clear output on reset
+       else
+           q <= d;      // Capture input on rising clock edge
+   end
+endmodule
+
+
+
+
+module dff4bit_tb();
+ reg [3:0]d;
+ reg clk;
+ reg reset;
+ wire [3:0] q;
+
+  dff4bit uut (
+     .d(d),
+     .clk(clk),
+     .reset(reset),
+
+
+===== PDF PAGE 28 =====
+       .q(q)
+  );
+
+  integer i;
+  initial begin
+     clk = 0;
+     forever #5 clk = ~clk; // 10ns period
+  end
+
+  initial begin
+
+       d = 4'b0000;
+       reset = 0;
+
+
+       #2 reset = 1;
+       #10 reset = 0;
+
+       #3 reset = 1;
+       #10 reset = 0;
+
+       // Apply all 16 possible 4-bit values
+       for (i = 0; i < 16; i = i + 1) begin
+          #10 d = i[3:0]; // Apply value
+       end
+
+    // Finish simulation
+    #20 $finish;
+  end
+
+  // Monitor signal transitions
+  initial begin
+     $monitor("Time=%t | d=%b | clk=%b | reset=%b | q=%b", $time, d, clk, reset, q);
+  end
+
+endmodule
